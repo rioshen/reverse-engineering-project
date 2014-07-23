@@ -20,4 +20,18 @@ Now, start to backtrace and find out the starting point of string matching:
 
 ![Alt text](re_simple3.png)
 
+```ASM
+mov     [ebp+var_58], eax ;
+cmp     [ebp+var_54], 4
+jle     short loc_401331
+...
+loc_401331:             ; "\nInvalid! Username Length\n"
+mov     [esp+88h+Format], offset aInvalidUsernam
+call    _printf
+mov     [esp+88h+Format], offset aHitEnterToExit ; "\nHit Enter to Exit\n"
+call    _printf
+call    _getchar
+jmp     loc_401489
+```
 
+In this snippet of Assembly language, `jle` means if the comparison result is smaller
