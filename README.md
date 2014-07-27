@@ -5,7 +5,7 @@ According to the assignment requirement, I visited [CracksMe Website](http://www
 
 ![Alt txt](./pics/fig1.png)
 
-### Reverse in Action.
+### Reverse in Action
 Type some garbage information into the message box, we can find the popup message box on invalid input. I prefer to use this approach to find the real starting point of the program. The string "Name is too short" is a great hint for me, as I found out how does the program validate user input and also which variable is used to stored user name:
 
 ![Alt txt](./pics/name-too-short.png)
@@ -99,7 +99,7 @@ for (counter = 0; counter < strlen(user_name); counter++) {
 }
 ...
 ```
-Now, I will analyze the loc_4012EEE Assembly Code to figure out how does the program compare the user input serial number with the calculated one.
+Now, I will analyze the `loc_4012EEE` Assembly Code to figure out how does the program compare the user input serial number with the calculated one.
 
 ![Alt txt](./pics/compare-result.png)
 
@@ -197,7 +197,7 @@ int main(void)
     for (counter = 0; counter < strlen(system_user); counter++) {
         calculated_serial += system_user[counter] + 100000;
     }
-    printf("First round result is %d, longo name %s\n\n",
+    printf("First round result is %d, logon name %s\n\n",
         calculated_serial, system_user);
 
     // second round computation
