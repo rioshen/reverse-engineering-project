@@ -1,5 +1,6 @@
-Reverse Engineering Assignment Report
+Reverse Engineering Assignment Report by Xu Shen (xs401@nyu.edu)
 --------------------------------------------------
+
 ### Introduction
 According to the assignment requirement, I visited [CracksMe Website](http://www.crackmes.de/archive/) and picked an unsolved [crackme.exe](http://crackmes.de/users/als_pom/crackme2/) with difficulty level 1. For tools, I choose to use IDA Pro based on Widows 7. Before cracking the binary program, I loaded the application with IDA and at the same time, run the application independently without debugging environment. Below is a screenshot for the preparation.
 
