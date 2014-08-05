@@ -2,32 +2,37 @@ Reverse Engineering Assignment Report by Xu Shen (xs401@nyu.edu)
 --------------------------------------------------
 
 ### Introduction
-According to the assignment requirement, I visited [CracksMe Website](http://www.crackmes.de/archive/) and picked an unsolved [crackme.exe](http://crackmes.de/users/als_pom/crackme2/) with difficulty level 1. For tools, I choose to use IDA Pro based on Widows 7. Before cracking the binary program, I loaded the application with IDA and at the same time, run the application independently without debugging environment. Below is a screenshot for the preparation.
+According to the assignment requirement, I visited [CracksMe Website](http://www.crackmes.de/archive/) and picked an unsolved [crackme.exe](http://crackmes.de/users/als_pom/crackme2/) with difficulty level 1. For tools, I choose to use IDA Pro based on Widows 7. 
+
+Before cracking the binary program, I loaded the application with IDA and at the same time, run the application independently without debugging environment. 
 
 ![Alt txt](./pics/fig1.png)
 
 ### Reverse in Action
-Type some garbage information into the message box, we can find the popup message box on invalid input. I prefer to use this approach to find the real starting point of the program. The string "Name is too short" is a great hint for me, as I found out how does the program validate user input and also which variable is used to stored user name:
+
+Type some garbage information into the message box, I found the popup message box on invalid input. I prefer to use this approach to find the real starting point of the program. The string "Name is too short" was a great hint for me, as I found out how does the program validate user input and also which variable is used to store user name:
 
 ![Alt txt](./pics/name-too-short.png)
 
-Open each function in IDA Pro and search for the string, continue with the process we will find this:
+Open each function in IDA Pro and searched for the string, continue with the process then I found this:
 
 ![Alt txt](./pics/ida-user-input.png)
 
-We can see that the variable `String` (rename it as `user_name` later) is used to store user name. And if the length of user input is less than 5, the program will pop up the message box says "Name is too short".
+The variable `String` (rename it as `user_name` later) is used to store user name. And if the length of user input is less than 5, the program will pop up the message box says "Name is too short".
 
 What's more, when I checked the 'Imports' tab in IDA Pro, I also found an important hint - the program calls `GetUserName()` function which will return the user's logon name:
+
 > Retrieves the name of the user associated with the current thread. -- [Windows MSDN](http://msdn.microsoft.com/en-us/library/windows/desktop/ms724432(v=vs.85).aspx)
 
-It helps me a lot when I found that two similar loop structures were used in this program. It is not a single round calculation, instead **user input value and logon name are combined together to compute the serial number**.
+It helped me a lot when I found that two similar loops were used in this program. It is not a single round calculation, instead **user input value and logon name are combined together to compute the serial number**.
 
 ### Find the `loop`
-For `KeyGen`, many algorithms will use a `loop` ( `while` or `for`) control structure to check the user input serial number, so find out the loop in Assembly language is very important for my hacking. IDA Pro provides a very handy and useful sign so that we can easily find loops in "text view" mode:
+
+For `KeyGen`, many algorithms will use a `loop` ( `while` or `for`) control structure to generate the serial number and to compare it with user input, so find out the loop in Assembly language is very important for reverse engineering. IDA Pro provides a very handy and useful sign so that we can easily find loops in "text view" mode:
 
 ![Alt txt](./pics/fig5.png)
 
-As the `GetUserName()` is used in one loop, I will first analyze this part:
+As the `GetUserName()` is used in one loop, I first analyzed this part:
 
 ![Alt txt](./pics/system_user_graph.png)
 
@@ -54,6 +59,7 @@ lea     edx, [ecx+eax+186A0h] ; add calculated_serial and system_user and 100000
 mov     [ebp+calculated_serial], edx      ; move the result to calculated_serial
 jmp     short loc_40120C
 ```
+
 After reviewing the Assembly code, we can generate a C code like this:
 
 ```c
@@ -66,6 +72,7 @@ for (counter = 0; counter < strlen(system_user); counter++) {
 }
 ...
 ```
+
 This is the first round calculation, it is based on user's logon name, each char in the buffer will be added by 100000 and the result will be stored in `calculated_serial` as an integer value. Next, user input string will be used as the second round calculation:
 
 ```ASM
@@ -92,7 +99,9 @@ lea     eax, [edx+ecx+186A0h] ;
 mov     [ebp+calculated_serial], eax
 jmp     short loc_4012BA
 ```
+
 After reviewing the Assembly code, we can generate a C code like this:
+
 ```C
 char user_name[LEN] = GetDlgItemText();
 for (counter = 0; counter < strlen(user_name); counter++) {
@@ -100,7 +109,8 @@ for (counter = 0; counter < strlen(user_name); counter++) {
 }
 ...
 ```
-Now, I will analyze the `loc_4012EEE` Assembly Code to figure out how does the program compare the user input serial number with the calculated one.
+
+Then, I analyzed the `loc_4012EEE` Assembly Code to figure out how does the program compare the user input serial number with the calculated one.
 
 ![Alt txt](./pics/compare-result.png)
 
@@ -143,6 +153,7 @@ jnz     short loc_40138A
 ```
 
 After reviewing the Assembly Code, we can always create a C code:
+
 ```c
 char var_108[LEN];
 char serial[LEN];
@@ -156,11 +167,13 @@ if (strcmp(input, caclulated_serial)) != 0) {
 }
 ```
 
-However, when I analyze the format string part, I found that the author (intentionally) leaves a bug in it. When call built-in function `wsprintf`, the author uses two format character `%ld-%lu`, but I can only find one `push` operation which pushes the `calculated_serial` variable. It means that the author missed one variable (`push` operation) for the formated string:
+However, when I analyzed the format string part, I found that the author (intentionally) leaves a bug. When call built-in function `wsprintf`, the author uses two format character `%ld-%lu`, but I can only find one `push` operation which pushes the `calculated_serial` variable. It means that the author missed one variable (`push` operation) for the formated string:
+
 ```C
 wsprintf(var_108, "RS-%ld-lu", calculated_serial);
 ```
-This implicit bug leads to that for different platform or computers, the second part `%lu` will be a random unsigned integer. At this point, I start to use **Debugging** approach to auditing the general register to find out the missing part.
+
+This implicit bug leads to that for different platform or computers, the second part `%lu` will be a random unsigned integer. At this point, I start to use **Debugging** approach to audit the general register to find out the missing part.
 
 ### Debugging in Action
 Get back to the Assembly code, we can find that `var_108` is used to store the formated result, so I add a breakpoint:
@@ -256,7 +269,7 @@ int main(void)
     return 0;
 }
 ```
-And here is the result in front of me!
+And here is the result.
 
 ![Alt txt](./pics/success.png)
 
