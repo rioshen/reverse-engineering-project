@@ -171,6 +171,44 @@ After that, press <kbd>F9</kbd> to start debugging, while stopping at the breakp
 
 ![Alt txt](./pics/magic-number.png)
 
+### Use IDA to understand `wsprintf()` optional parameters
+
+To figure out where does the magic number comes from, we need to understand the behavior of `wsprintf` function get parameters, below is the implementation of `wsprintf()`:
+```c
+int wsprintf(  _Out_  LPTSTR lpOut,  _In_   LPCTSTR lpFmt, _In_    ...)
+
+...
+
+  va_list vl;
+  va_start(vl,n);
+  for (i=0;i<n;i++)
+  {
+    val=va_arg(vl,Type);
+    ...
+  }
+  va_end(vl);
+ 
+...
+}
+```
+
+The struct `va_list` is the variable argument lists, C & C++ allow for functions to have variable argument lists. The "..." signifies that there are zero or more optional arguments to the function. Here is a example I would use to show what gonna happen, if we don't specify the variable name:
+
+```c
+int a = 5;
+printf("%d");
+```
+
+At compile time, the compiler doesn't analyse the format string and determine that an integer argument is missing. This is perfectly legal C code. However, at runtime, the `wsprintf` function will assume that you have supplied the argument and go looking for it on the stack. It will pick up whatever happens to be on there. In general, the function will pick whatever on the top of the stack based on the variable type. 
+
+**Note**: The result might be vary based on different compilers or compile options. In my case, I predict the `crack` program is compiled by Windows Visual Studio built-in compiler. 
+
+Back to my project, I use `debugging` to find out what's on the top of the stack while `wsprintf` starts to find the missing parameter, and yes, the magic number is on the top of the stack.
+
+![Alt txt](./pics/stack.png)
+
+### Create a KeyGen program.
+
 Great! All these hints and glues are enough to create my first `KeyGen` function!
 
 ```c
